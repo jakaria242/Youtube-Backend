@@ -1,4 +1,5 @@
 // require('dotenv').config({path: "./env"})
+
 import dotenv from 'dotenv'
 dotenv.config({
     path: "./env"
@@ -13,8 +14,12 @@ connectDB().then(()=>{
         app.listen(port, ()=>{
             console.log(`server is runing on ${port}`);
         })
+        app.on("error", (error)=>{
+            console.log("prot not talk to database", error);
+            throw error
+          })
     } catch (error) {
-        
+        console.log('Error', error);
     }
  
 }).catch((error)=>{
