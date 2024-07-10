@@ -1,6 +1,6 @@
 import mongoose, { Schema }  from "mongoose";
 import bcrypt from 'bcrypt'
-import { jwt } from "jsonwebtoken";
+import jwt from "jsonwebtoken"
 
  const userSchema = new Schema({
     userName:{
@@ -24,7 +24,7 @@ import { jwt } from "jsonwebtoken";
         trim: true,
         indexe: true
     },
-    avater:{
+    avatar:{
         type: String,      //=== cloudinary url
         requireed: true,
     },
@@ -51,10 +51,10 @@ import { jwt } from "jsonwebtoken";
 //===(pre)-ar maddome database a kono kisu save howar age change kora arr (isModified)-check kore kono field is modified or not ====
  userSchema.pre("save", async function (next){
     if (this.isModified("password")) {
-        this.password = bcrypt.hash(this.password, 10)
+        this.password = await bcrypt.hash(this.password, 10)
         next();
       } else {
-        next();
+       return  next();
       }
  })
 // password encrypt function end here=============================
@@ -63,14 +63,14 @@ import { jwt } from "jsonwebtoken";
 // password bcrypt or compare method start here=============================
 
 /*  mongoose (method)-helps to mange utils funtions. This (methods)-name is isCorrectPassword. This (method) create password bcrypt function. compare to encrypt& bcrypt*/
-User.methods.isCorrectPassword = async function (password) {
+userSchema.methods.isCorrectPassword = async function (password) {
  return await bcrypt.compare(password, this.password);
 };
 // password bcrypt or compare method end here=============================
 
 
 //@function generateAcessToken() method start here ============
-User.methods.generateAcessToken = function () {
+userSchema.methods.generateAcessToken = function () {
     return jwt.sign(
       {
         _id: this._id,
@@ -89,7 +89,7 @@ User.methods.generateAcessToken = function () {
 
 //@function generateRefreshToken() method Start here ============
 
-User.methods.generateAcessToken = function () {
+userSchema.methods.generateRefreshToken = function () {
     return jwt.sign(
       {
         _id: this._id,
@@ -108,4 +108,4 @@ User.methods.generateAcessToken = function () {
 
 
 
- export const User = mongoose.model("User",userSchema)
+ export const  User = mongoose.model("User",userSchema)
