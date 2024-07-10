@@ -55,16 +55,17 @@ const register = asyncHandler(async (req,res)=>{
         password:password
     })
 
-    const createUser = User.findById(user._id).select("-password -refreshToken")
+    const createUser = await User.findById(user._id).select("-password -refreshToken")
     if(!createUser){
         throw new ApiError(500, "something went wrong when register the user")
     }
 
-    return res.json(
-        // new ApiResponse(200, createUser, "User registered Successfully")
-        {
-            message: "cessfull"
-        }
+    return res.status(201).json(
+
+        new ApiResponse(200, createUser, "User registered Successfully")
+        // {
+        //     message: "cessfull"
+        // }
     )
     
   
