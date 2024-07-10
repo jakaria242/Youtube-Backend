@@ -31,10 +31,12 @@ import jwt from "jsonwebtoken"
     coverImage:{
         type: String,      //=== cloudinary url
     },
-    watchHistory:{
+    watchHistory:[
+      {
         type: Schema.Types.ObjectId,
         ref: "Video"
-    },
+    }
+    ],
     password:{
         type: String,
         requireed: [true, "password is required"]

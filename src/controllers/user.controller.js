@@ -8,18 +8,18 @@ const emailPattrn =  /^(([^<>()[\]\\.,;:\s@"]+(\.[^<>()[\]\\.,;:\s@"]+)*)|.(".+"
 
 
 const register = asyncHandler(async (req,res)=>{
-     // get user details from frontend
-    // validation - not empty
-    // check if user already exists: username, email
-    // check for images, check for avatar
-    // upload them to cloudinary, avatar
-    // create user object - create entry in db
-    // remove password and refresh token field from response
-    // check for user creation
-    // return res
+    // (1) get user details from frontend
+    // (2) validation - not empty
+    // (3) check if user already exists: username, email
+    // (4) check for images, check for avatar
+    // (5) upload them to cloudinary, avatar
+    // (6) create user object - create entry in db
+    // (7) remove password and refresh token field from response
+    // (8) check for user creation
+    // (9) return res
     
     const {userName, email, fullName, password} = req.body
-    if ([userName, email, fullName, password].some((field) => field?.trim === "")) {
+    if ( [fullName, email, userName, password].some((field) => field?.trim() === "")) {
         throw new ApiError(400, "All field are required")
     }
     if (!emailPattrn.test(email)) {
@@ -33,12 +33,16 @@ const register = asyncHandler(async (req,res)=>{
     }
 
     const avatarLocalPath = req.files?.avatar[0]?.path;
-    const coverImageLocalPath = req.files?.coverImage[0]?.path;
-
+    // const coverImageLocalPath = req.files?.coverImage[0]?.path; 
+    let coverImageLocalPath;
+    if (req.files && Array.isArray(req.files.coverImage) && req.files.coverImage.length > 0 ) {
+        coverImageLocalPath = req.files.coverImage[0].path
+    }
+    
     if (!avatarLocalPath) {
         throw new ApiError(400, "Avatar file is required")
     }
-
+    
     const avatar = await uploadOnCloudinary(avatarLocalPath)
     const coverImage = await uploadOnCloudinary(coverImageLocalPath)
      
@@ -61,11 +65,7 @@ const register = asyncHandler(async (req,res)=>{
     }
 
     return res.status(201).json(
-
         new ApiResponse(200, createUser, "User registered Successfully")
-        // {
-        //     message: "cessfull"
-        // }
     )
     
   
