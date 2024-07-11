@@ -4,10 +4,30 @@ import { User } from '../models/user.model.js'
 import { uploadOnCloudinary } from '../utils/cloudinary.js'
 import { ApiResponse } from '../utils/ApiResponse.js'
 
-const emailPattrn =  /^(([^<>()[\]\\.,;:\s@"]+(\.[^<>()[\]\\.,;:\s@"]+)*)|.(".+"))@((\[[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\])|(([a-zA-Z\-0-9]+\.)+[a-zA-Z]{2,}))$/
+const emailPattrn =  /^(([^<>()[\]\\.,;:\s@"]+(\.[^<>()[\]\\.,;:\s@"]+)*)|.(".+"))@((\[[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\])|(([a-zA-Z\-0-9]+\.)+[a-zA-Z]{2,}))$/;
 
 
-const register = asyncHandler(async (req,res)=>{
+
+//// === generateAccess And  RefereshTokens
+const generateAccessAndRefereshTokens = async(userId) =>{
+    try {
+        const user = await User.findById(userId)
+        const accessToken = user.generateAccessToken()
+        const refreshToken = user.generateRefreshToken()
+
+        user.refreshToken = refreshToken
+        await user.save({ validateBeforeSave: false })
+
+        return {accessToken, refreshToken}
+
+
+    } catch (error) {
+        throw new ApiError(500, "Something went wrong while generating referesh and access token")
+    }
+}
+
+
+const registerUser = asyncHandler(async (req,res)=>{
     // (1) get user details from frontend
     // (2) validation - not empty
     // (3) check if user already exists: username, email
@@ -67,9 +87,91 @@ const register = asyncHandler(async (req,res)=>{
     return res.status(201).json(
         new ApiResponse(200, createUser, "User registered Successfully")
     )
-    
-  
 
 })
 
-export {register}
+
+ const loginUser = asyncHandler(async (req,res)=>{
+    // (1) req body -> data
+    // (2) username or email
+    // (3) find the user
+    // (4) password check
+    // (5) access and referesh token genarate send the user
+    // (6) send cookie
+
+    const {email, userName, password} = req.body
+    if (!userName || !email ) {
+        throw new ApiError(400, "userName or email is required")
+    }
+   
+    const user = await User.findOne({
+        $or: [{ email }, { userName }]
+    })
+    if (!user) {
+        throw new ApiError(404, "User does not exist")
+    }
+
+   const isPasswordValid = await user.isPasswordCorrect(password)
+
+   if (!isPasswordValid) {
+    throw new ApiError(401, "Invalid user credentials")
+    }
+
+    // generateAccess And RefereshTokens method call here -=== the method create in the top =====  start here
+    const {accessToken, refreshToken} = await generateAccessAndRefereshTokens(user._id)
+    // generateAccess And RefereshTokens method call here -=== the method create in the top=====  End here
+
+    const loggedInUser = await User.findById(user._id).select("-password -refreshToken")
+
+    // send the access & refresh token by the cookise start here
+
+    const options = {
+        httpOnly: true,
+        secure: true
+     }
+
+     return res.status(200).cookie.cookie("accessToken", accessToken, options).cookie("refreshToken", refreshToken, options)
+     .json(
+        new ApiResponse(
+            200, 
+            {
+                user: loggedInUser, accessToken, refreshToken
+            },
+            "User logged In Successfully"
+        )
+    )
+
+
+    // send the access & refresh token by the cookise End here
+
+ })
+
+const logoutUser = asyncHandler(async ()=>{
+    await User.findByIdAndUpdate(
+        req.user._id,
+        {
+            $unset: {
+                refreshToken: 1 // this removes the field from document
+            }
+        },
+        {
+            new: true
+        }
+    )
+
+    const options = {
+        httpOnly: true,
+        secure: true
+    }
+
+    return res
+    .status(200)
+    .clearCookie("accessToken", options)
+    .clearCookie("refreshToken", options)
+    .json(new ApiResponse(200, {}, "User logged Out"))
+})
+
+
+
+
+export {registerUser, loginUser, logoutUser}
