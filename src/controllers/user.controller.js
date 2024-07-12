@@ -265,7 +265,7 @@ const updateAccountDetails  = asyncHandler(async(req,res)=>{
      if (!fullName || !email) {
         throw new ApiError(400, "All fields are required")
     }
-    const user = User.findByIdAndDelete(
+    const user =  await User.findByIdAndDelete(
         req.user?._id,
         { 
             fullName,           ///  (1) chaile avabe kore jai ---   fullName:fullName  |or|  fullName
@@ -288,8 +288,6 @@ const updateAccountDetails  = asyncHandler(async(req,res)=>{
         throw new ApiError(400, "Avatar file is missing")
     }
 
-    //TODO: delete old image - assignment
-
     const avatar = await uploadOnCloudinary(avatarLocalPath)
 
     if (!avatar.url) {
@@ -307,6 +305,8 @@ const updateAccountDetails  = asyncHandler(async(req,res)=>{
         {new: true}
     ).select("-password")
 
+     // delet old image to cloudinary assignment
+
     return res
     .status(200)
     .json(
@@ -322,8 +322,6 @@ const updateAccountDetails  = asyncHandler(async(req,res)=>{
     if (!coverImageLocalPath ) {
         throw new ApiError(400, "Cover image file is missing")
     }
-
-    //TODO: delete old image - assignment
 
     const coverImage = await uploadOnCloudinary(coverImageLocalPath)
 
@@ -342,6 +340,8 @@ const updateAccountDetails  = asyncHandler(async(req,res)=>{
         {new: true}
     ).select("-password")
 
+    // delet old image to cloudinary assignment
+
     return res
     .status(200)
     .json(
@@ -349,6 +349,81 @@ const updateAccountDetails  = asyncHandler(async(req,res)=>{
     )
 })
 //// =========Update  User  Cover Iamge  End Here ========================
+
+
+//// =========Get User Channel profile  Start Here ========================
+
+const getUserChannelProfile = asyncHandler(async(req,res)=>{
+    const {userName} = req.params
+
+    if (!userName?.trim()) {
+        throw new ApiError(400, "username is missing")
+    }
+
+    const channel = await User.aggregate([
+        {
+            $match: {
+                userName: userName?.toLowerCase()  //=======  one user ba channel found  
+            }
+        },
+        {
+            $lookup: {                             // ======== The channel subscribers found
+                from: "subscriptions",
+                localField: "_id",                       
+                foreignField: "channel",
+                as: "subscribers"
+            }
+        },
+        {
+            $lookup: {                         // ======= The channel  subscribed found
+                from: "subscriptions",
+                localField: "_id",
+                foreignField: "subscriber",
+                as: "subscribedTo"
+            }
+        },
+        {
+            $addFields: {                                 
+                subscribersCount: {                      //======= The channel  subscribers count
+                    $size: "$subscribers"
+                },
+                channelsSubscribedToCount: {             //======= The channel  subscribed count 
+                    $size: "$subscribedTo"
+                },
+                isSubscribed: {                      //===== (subscribe-button) --- subscribe or subscribed ==true or false return korbe
+                    $cond: {
+                        if: {$in: [req.user?._id, "$subscribers.subscriber"]},
+                        then: true,
+                        else: false
+                    }
+                }
+            }
+        },
+        {
+            $project: {
+                fullName: 1,
+                userName: 1,
+                subscribersCount: 1,
+                channelsSubscribedToCount: 1,
+                isSubscribed: 1,
+                avatar: 1,
+                coverImage: 1,
+                email: 1
+
+            }
+        }
+    ])
+
+    if (!channel?.length) {
+        throw new ApiError(404, "channel does not exists")
+    }
+
+    return res.status(200)
+    .json(
+        new ApiResponse(200, channel[0], "User channel fetched successfully")
+    )
+})
+//// =========Get User Channel profile  End Here ========================
 
 
 
@@ -361,5 +436,6 @@ export {
         getCurrentUser,
         updateAccountDetails,  
         updateUserAvatar,
-        updateUserCoverImage
+        updateUserCoverImage,
+        getUserChannelProfile
       }
