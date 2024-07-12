@@ -3,16 +3,16 @@ import { ApiError } from '../utils/ApiError.js'
 import { User } from '../models/user.model.js'
 import { uploadOnCloudinary } from '../utils/cloudinary.js'
 import { ApiResponse } from '../utils/ApiResponse.js'
+import jwt from 'jsonwebtoken'
 
 const emailPattrn =  /^(([^<>()[\]\\.,;:\s@"]+(\.[^<>()[\]\\.,;:\s@"]+)*)|.(".+"))@((\[[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\])|(([a-zA-Z\-0-9]+\.)+[a-zA-Z]{2,}))$/;
 
 
-
-//// === generateAccess And  RefereshTokens
+//// ========================= generateAccess And  RefereshTokens start ===========================
 const generateAccessAndRefereshTokens = async(userId) =>{
     try {
         const user = await User.findById(userId)
-        const accessToken = user.generateAccessToken()
+        const accessToken = user.generateAcessToken()
         const refreshToken = user.generateRefreshToken()
 
         user.refreshToken = refreshToken
@@ -25,8 +25,9 @@ const generateAccessAndRefereshTokens = async(userId) =>{
         throw new ApiError(500, "Something went wrong while generating referesh and access token")
     }
 }
+//// ============ generateAccess And  RefereshTokens End ===============================
 
-
+  //// =============================rgistration start Here ========================
 const registerUser = asyncHandler(async (req,res)=>{
     // (1) get user details from frontend
     // (2) validation - not empty
@@ -89,8 +90,9 @@ const registerUser = asyncHandler(async (req,res)=>{
     )
 
 })
+  //// =============================rgistration End Here ========================
 
-
+    //// =======================login start Here ========================
  const loginUser = asyncHandler(async (req,res)=>{
     // (1) req body -> data
     // (2) username or email
@@ -100,9 +102,14 @@ const registerUser = asyncHandler(async (req,res)=>{
     // (6) send cookie
 
     const {email, userName, password} = req.body
-    if (!userName || !email ) {
+    if (!userName && !email ) {
         throw new ApiError(400, "userName or email is required")
     }
+
+    // ===========chaile ai logic use kora jabe jodi jekono akta dorkar hoi===================
+    // if (!(userName || email)) {
+    //     throw new ApiError(400, "userName or email is required")
+    // }
    
     const user = await User.findOne({
         $or: [{ email }, { userName }]
@@ -111,7 +118,7 @@ const registerUser = asyncHandler(async (req,res)=>{
         throw new ApiError(404, "User does not exist")
     }
 
-   const isPasswordValid = await user.isPasswordCorrect(password)
+   const isPasswordValid = await user.isCorrectPassword(password)
 
    if (!isPasswordValid) {
     throw new ApiError(401, "Invalid user credentials")
@@ -123,14 +130,14 @@ const registerUser = asyncHandler(async (req,res)=>{
 
     const loggedInUser = await User.findById(user._id).select("-password -refreshToken")
 
-    // send the access & refresh token by the cookise start here
+    // send the access & refresh token by the cookise start here   
 
     const options = {
         httpOnly: true,
         secure: true
      }
 
-     return res.status(200).cookie.cookie("accessToken", accessToken, options).cookie("refreshToken", refreshToken, options)
+     return res.status(200).cookie("accessToken", accessToken, options).cookie("refreshToken", refreshToken, options)
      .json(
         new ApiResponse(
             200, 
@@ -145,8 +152,10 @@ const registerUser = asyncHandler(async (req,res)=>{
     // send the access & refresh token by the cookise End here
 
  })
+//// =========================ogin End Here ========================
 
-const logoutUser = asyncHandler(async ()=>{
+    //// ================logout start Here ========================
+const logoutUser = asyncHandler(async (req,res)=>{
     await User.findByIdAndUpdate(
         req.user._id,
         {
@@ -170,8 +179,54 @@ const logoutUser = asyncHandler(async ()=>{
     .clearCookie("refreshToken", options)
     .json(new ApiResponse(200, {}, "User logged Out"))
 })
+//// ========================logout End Here ========================
+
+//// =========refreshTokenAccess end-point create start Here ========================
+const refreshAccessToken = asyncHandler(async (req,res)=>{
+   const incomingRefreshToken = req.cookie.refreshToken || req.body.refreshToken
+   if (!incomingRefreshToken) {
+     throw new ApiError(401, "unauthorized request")
+   }
+
+   try {
+    // verify incomingRefreshToken start here=====
+    const decodedToken = jwt.verify(incomingRefreshToken, process.env.REFRESH_TOKEN_SECRET)
+ 
+    const user =  await User.findById(decodedToken?._id)
+ 
+    if (!user) {
+     throw new ApiError(401, "Invalited RefreshToken")
+   }
+   if (incomingRefreshToken !== user?.refreshToken) {
+     throw new ApiError(401, "Refresh token is expired or used")
+   }
+    // verify incomingRefreshToken End here=======
+ 
+    ///======= genarate Access & Refresh Token =====
+    const options = {
+        httpOnly: true,
+        secure: true
+     } 
+     const {accessToken, newRefreshToken} = await generateAccessAndRefereshTokens(user._id)
+     return res
+     .status(200)
+     .cookie("accessToken", accessToken, options)
+     .cookie("refreshToken", newRefreshToken, options)
+     .json(
+         new ApiResponse(
+             200, 
+             {accessToken, refreshToken: newRefreshToken},
+             "Access token refreshed"
+         )
+     )
+         ///======= genarate Access & Refresh Token =====
+   } catch (error) {
+    throw new ApiError(401, error?.message || "Invalid refresh token")
+   }
+
+})
+//// =========refreshToken end-point  End Here ========================
 
 
 
-
-export {registerUser, loginUser, logoutUser}
+export {registerUser, loginUser, logoutUser, refreshAccessToken}
