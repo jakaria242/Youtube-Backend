@@ -4,6 +4,7 @@ import { User } from '../models/user.model.js'
 import { uploadOnCloudinary } from '../utils/cloudinary.js'
 import { ApiResponse } from '../utils/ApiResponse.js'
 import jwt from 'jsonwebtoken'
+import mongoose from "mongoose";
 
 const emailPattrn =  /^(([^<>()[\]\\.,;:\s@"]+(\.[^<>()[\]\\.,;:\s@"]+)*)|.(".+"))@((\[[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\])|(([a-zA-Z\-0-9]+\.)+[a-zA-Z]{2,}))$/;
 
@@ -183,7 +184,7 @@ const logoutUser = asyncHandler(async (req,res)=>{
 
 //// =========refreshTokenAccess end-point create start Here ========================
 const refreshAccessToken = asyncHandler(async (req,res)=>{
-   const incomingRefreshToken = req.cookie.refreshToken || req.body.refreshToken
+   const incomingRefreshToken = req.cookies.refreshToken || req.body.refreshToken
    if (!incomingRefreshToken) {
      throw new ApiError(401, "unauthorized request")
    }
@@ -273,6 +274,7 @@ const updateAccountDetails  = asyncHandler(async(req,res)=>{
          },
         { new: true }
         ).select("-password")
+        
 
         return res
         .status(200)
@@ -426,7 +428,7 @@ const getUserChannelProfile = asyncHandler(async(req,res)=>{
 //// =========Get User Channel profile  End Here ===========its  join to subscription model--with aggregation pipeline
 
 
-//// =========Get Watch History  Start Here ========================
+//// =========Get Watch History  Start Here ======================== aggregation pipeline use
 
 const getWatchHistory = asyncHandler(async(req,res)=>{
     const user = await User.aggregate([
@@ -482,7 +484,7 @@ const getWatchHistory = asyncHandler(async(req,res)=>{
     )
 })
 
-//// =========Get Watch History  End Here ========================
+//// =========Get Watch History  End Here ======================== aggregation pipeline use
 
 
 
