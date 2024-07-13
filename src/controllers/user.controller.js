@@ -351,7 +351,7 @@ const updateAccountDetails  = asyncHandler(async(req,res)=>{
 //// =========Update  User  Cover Iamge  End Here ========================
 
 
-//// =========Get User Channel profile  Start Here ========================
+//// =========Get User Channel profile  Start Here ========= its  join to subscription model--with aggregation pipeline
 
 const getUserChannelProfile = asyncHandler(async(req,res)=>{
     const {userName} = req.params
@@ -423,7 +423,66 @@ const getUserChannelProfile = asyncHandler(async(req,res)=>{
         new ApiResponse(200, channel[0], "User channel fetched successfully")
     )
 })
-//// =========Get User Channel profile  End Here ========================
+//// =========Get User Channel profile  End Here ===========its  join to subscription model--with aggregation pipeline
+
+
+//// =========Get Watch History  Start Here ========================
+
+const getWatchHistory = asyncHandler(async(req,res)=>{
+    const user = await User.aggregate([
+        {
+            $match: {
+                _id: new mongoose.Types.ObjectId(req.user._id)
+            }
+        },
+        {
+            $lookup: {
+                from: "videos",
+                localField: "watchHistory",
+                foreignField: "_id",
+                as: "watchHistory",
+                pipeline: [
+                    {
+                        $lookup: {
+                            from: "users",
+                            localField: "owner",
+                            foreignField: "_id",
+                            as: "owner",
+                            pipeline: [
+                                {
+                                    $project: {
+                                        fullName: 1,
+                                        username: 1,
+                                        avatar: 1
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    {
+                        $addFields:{
+                            owner:{
+                                $first: "$owner"
+                            }
+                        }
+                    }
+                ]
+            }
+        }
+    ])
+
+    return res
+    .status(200)
+    .json(
+        new ApiResponse(
+            200,
+            user[0].watchHistory,
+            "Watch history fetched successfully"
+        )
+    )
+})
+
+//// =========Get Watch History  End Here ========================
 
 
 
@@ -437,5 +496,6 @@ export {
         updateAccountDetails,  
         updateUserAvatar,
         updateUserCoverImage,
-        getUserChannelProfile
+        getUserChannelProfile,
+        getWatchHistory
       }
